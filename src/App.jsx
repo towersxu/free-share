@@ -7,6 +7,11 @@ const PLAYLIST = [
     artist: 'Lena, Miss Li',
     src: '/free-share/music/Lena Miss Li - ASAP.mp3',
   },
+  {
+    title: 'The Mass',
+    artist: 'Era',
+    src: '/free-share/music/Era - The Mass.mp3',
+  },
 ]
 
 function formatTime(sec) {
