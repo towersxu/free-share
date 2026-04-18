@@ -1,120 +1,164 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import './App.css'
 
+const PLAYLIST = [
+  {
+    title: 'ASAP',
+    artist: 'Lena, Miss Li',
+    src: '/free-share/music/Lena Miss Li - ASAP.mp3',
+  },
+]
+
+function formatTime(sec) {
+  if (!sec || isNaN(sec)) return '0:00'
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const audioRef = useRef(null)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [volume, setVolume] = useState(0.8)
+
+  const track = PLAYLIST[currentIndex]
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (isPlaying) {
+      audio.pause()
+    } else {
+      audio.play()
+    }
+    setIsPlaying(!isPlaying)
+  }, [isPlaying])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+      setProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0)
+    }
+    const onLoadedMetadata = () => setDuration(audio.duration)
+    const onEnded = () => setIsPlaying(false)
+
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+    audio.addEventListener('ended', onEnded)
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+      audio.removeEventListener('ended', onEnded)
+    }
+  }, [currentIndex])
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume
+  }, [volume])
+
+  const seek = (e) => {
+    const audio = audioRef.current
+    if (!audio || !audio.duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pct = (e.clientX - rect.left) / rect.width
+    audio.currentTime = pct * audio.duration
+  }
+
+  const playTrack = (index) => {
+    setCurrentIndex(index)
+    setIsPlaying(true)
+    setTimeout(() => audioRef.current?.play(), 100)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="player-app">
+      <audio ref={audioRef} src={track.src} preload="metadata" />
+
+      {/* Header */}
+      <header className="header">
+        <span className="header-icon">🎵</span>
+        <h1>Free Share Music</h1>
+      </header>
+
+      {/* Now Playing */}
+      <div className="now-playing">
+        <div className={`disc ${isPlaying ? 'spinning' : ''}`}>
+          <div className="disc-inner">♪</div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+        <h2 className="track-title">{track.title}</h2>
+        <p className="track-artist">{track.artist}</p>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="progress-section">
+        <span className="time-label">{formatTime(currentTime)}</span>
+        <div className="progress-bar" onClick={seek}>
+          <div className="progress-fill" style={{ width: `${progress}%` }} />
+          <div className="progress-thumb" style={{ left: `${progress}%` }} />
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+        <span className="time-label">{formatTime(duration)}</span>
+      </div>
+
+      {/* Controls */}
+      <div className="controls">
+        <button className="ctrl-btn" onClick={() => playTrack((currentIndex - 1 + PLAYLIST.length) % PLAYLIST.length)} title="上一首">
+          ⏮
         </button>
-      </section>
+        <button className="ctrl-btn play-btn" onClick={togglePlay} title={isPlaying ? '暂停' : '播放'}>
+          {isPlaying ? '⏸' : '▶️'}
+        </button>
+        <button className="ctrl-btn" onClick={() => playTrack((currentIndex + 1) % PLAYLIST.length)} title="下一首">
+          ⏭
+        </button>
+      </div>
 
-      <div className="ticks"></div>
+      {/* Volume */}
+      <div className="volume-section">
+        <span className="volume-icon">🔊</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={volume}
+          onChange={(e) => setVolume(parseFloat(e.target.value))}
+          className="volume-slider"
+        />
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
+      {/* Playlist */}
+      <div className="playlist">
+        <h3>播放列表</h3>
+        <ul>
+          {PLAYLIST.map((t, i) => (
+            <li
+              key={i}
+              className={`playlist-item ${i === currentIndex ? 'active' : ''}`}
+              onClick={() => playTrack(i)}
+            >
+              <span className="playlist-index">{i + 1}</span>
+              <span className="playlist-info">
+                <span className="playlist-title">{t.title}</span>
+                <span className="playlist-artist">{t.artist}</span>
+              </span>
+              {i === currentIndex && isPlaying && <span className="playing-indicator">♫</span>}
             </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          ))}
+        </ul>
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <footer className="footer">
+        <p>音乐来源于本地硬盘 · Free Share</p>
+      </footer>
+    </div>
   )
 }
 
