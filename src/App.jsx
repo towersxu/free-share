@@ -12,6 +12,11 @@ const PLAYLIST = [
     artist: 'Era',
     src: '/free-share/music/Era - The Mass.mp3',
   },
+  {
+    title: '克卜勒',
+    artist: '孙燕姿',
+    src: '/free-share/music/孙燕姿 - 克卜勒.mp3',
+  },
 ]
 
 function formatTime(sec) {
